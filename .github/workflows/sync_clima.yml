@@ -1,0 +1,33 @@
+name: Actualizar Datos Clima
+
+on:
+  schedule:
+    - cron: '0 */3 * * *' # Se ejecuta cada 3 horas
+  workflow_dispatch:      # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v3
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+
+      - name: Ejecutar Sincronización
+        run: python main.py
+
+      - name: Guardar cambios en la DB
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add pronostico.db
+          git commit -m "Actualización automática de datos" || exit 0
+          git push origin main
