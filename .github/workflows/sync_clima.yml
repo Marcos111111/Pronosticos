@@ -2,15 +2,21 @@ name: Actualizar Datos Clima
 
 on:
   schedule:
-    - cron: '0 */3 * * *' # Se ejecuta cada 3 horas
-  workflow_dispatch:      # Permite ejecutarlo manualmente desde GitHub
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+# ------------------------
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del código
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Actualizamos a v4 (mejor que v3)
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }} # Usamos el token explícitamente
 
       - name: Configurar Python
         uses: actions/setup-python@v4
@@ -29,5 +35,6 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add pronostico.db
+          # Solo hace commit si hay cambios, si no, no hace nada
           git commit -m "Actualización automática de datos" || exit 0
-          git push origin main
+          git push
