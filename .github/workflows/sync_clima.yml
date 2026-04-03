@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: write
-# ------------------------
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,4 +35,4 @@ jobs:
           git add pronostico.db
           # Solo hace commit si hay cambios, si no, no hace nada
           git commit -m "Actualización automática de datos" || exit 0
-          git push
+          git push origin main
