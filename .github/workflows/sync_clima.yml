@@ -32,7 +32,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add pronostico.db
+          git add monitoreo_agricola.db
           # Solo hace commit si hay cambios, si no, no hace nada
           git commit -m "Actualización automática de datos" || exit 0
           git push origin main
