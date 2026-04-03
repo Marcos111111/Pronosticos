@@ -20,7 +20,7 @@ def cargar_datos(tabla, lote):
         query = f"""
             SELECT * FROM {tabla} 
             WHERE nombre_campo = '{lote}' 
-            AND fecha_consulta = (SELECT MAX(fecha_consulta) FROM {tabla})
+            AND fecha_consulta = (SELECT MAX(fecha_consulta) FROM {tabla} WHERE nombre_campo = '{lote}')
             ORDER BY fecha_pronosticada ASC
         """
         df = pd.read_sql_query(query, conn)
