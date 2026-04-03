@@ -113,6 +113,13 @@ if not df_completo.empty:
                     line_shape="spline",
                     labels={'value': 'Grados (°C)', 'variable': 'Medición'},
                     color_discrete_map={'temp_c': '#FF4B4B', 'punto_rocio_c': '#00BFFF'})
+    # AJUSTE DE INTERVALOS EN EL EJE X (TIEMPO)
+    fig_temp.update_xaxes(
+        dtick=3600000,  #1 hora en ms
+        tickformat="%H:%M", # Formato de 24hs (Ej: 02:00, 04:00...)
+        gridcolor='rgba(255, 255, 255, 0.1)',
+        showgrid=True
+    )
 
     # AGREGAMOS LAS REFERENCIAS INTERMEDIAS AQUÍ:
     fig_temp.update_yaxes(
