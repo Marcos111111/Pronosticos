@@ -103,13 +103,12 @@ if not df_completo.empty:
         direccion_letras = grados_a_direccion(actual['viento_dir_deg'])
         
         # Creamos 5 columnas para que entre todo cómodo
-        c1, c2, c3, c4, c5 = st.columns(5)
+        c1, c2, c3, c4 = st.columns(4)
         
         c1.metric("Temperatura", f"{actual['temp_c']}°C")
         c2.metric("Punto Rocío", f"{actual['punto_rocio_c']}°C")
-        c3.metric("Presión", f"{actual['presion_hpa']} hPa")
-        c4.metric("Vel. Viento", f"{actual['viento_kmh']} km/h")
-        c5.metric("Dir. Viento", direccion_letras)
+        c3.metric("Vel. Viento", f"{actual['viento_kmh']} km/h")
+        c4.metric("Dir. Viento", direccion_letras)
     else:
         # Si por alguna razón no hay datos de esta hora, mostramos un aviso
         st.write("Seleccioná 'Hoy' en el navegador para ver las métricas en tiempo real.")
