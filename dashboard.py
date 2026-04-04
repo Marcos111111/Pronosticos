@@ -13,6 +13,14 @@ st.title("📊 Panel de Control Meteorológico")
 st.markdown(f"**Base de datos:** `{DB_NAME}` | **Estado:** Operacional ✅")
 
 # --- CAPA DE DATOS ---
+def grados_a_direccion(grados):
+    if grados is None: return "-"
+    # Definimos los sectores (cada uno de 45°)
+    direcciones = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
+    # Sumamos 22.5 para centrar el rango y dividimos por 45
+    indice = int((grados + 22.5) % 360 // 45)
+    return direcciones[indice]
+
 def cargar_datos(tabla, lote):
     try:
         conn = sqlite3.connect(DB_NAME)
@@ -90,6 +98,10 @@ if not df_completo.empty:
     if not df_ahora.empty:
         actual = df_ahora.iloc[0]
         
+        # --- PROCESAMOS LA DIRECCIÓN DEL VIENTO ---
+        # Usamos la función que pusiste arriba del todo
+        direccion_letras = grados_a_direccion(actual['viento_dir_deg'])
+        
         # Creamos 5 columnas para que entre todo cómodo
         c1, c2, c3, c4, c5 = st.columns(5)
         
@@ -97,7 +109,7 @@ if not df_completo.empty:
         c2.metric("Punto Rocío", f"{actual['punto_rocio_c']}°C")
         c3.metric("Presión", f"{actual['presion_hpa']} hPa")
         c4.metric("Vel. Viento", f"{actual['viento_kmh']} km/h")
-        c5.metric("Dir. Viento", f"{actual['viento_dir_deg']}°")
+        c5.metric("Dir. Viento", direccion_letras)
     else:
         # Si por alguna razón no hay datos de esta hora, mostramos un aviso
         st.write("Seleccioná 'Hoy' en el navegador para ver las métricas en tiempo real.")
@@ -154,9 +166,32 @@ if not df_completo.empty:
     else:
         st.success("No se detectan lluvias para este día en este modelo.")
 
-    # Tabla de datos oculta
-    with st.expander("🔍 Ver registros detallados"):
-        st.write(df_dia)
+# --- TABLA DE DATOS DETALLADOS ---
+st.subheader("📊 Desglose de Datos")
+
+if not df_dia.empty:
+    # 1. Forzamos una copia nueva para que no use el caché
+    df_final = df_dia.copy()
+    
+    # 2. Agregamos las letras (Asegurate que la función esté definida arriba)
+    df_final['Viento_Dir'] = df_final['viento_dir_deg'].apply(grados_a_direccion)
+    
+    # 3. Lista de columnas que QUEREMOS BORRAR (revisá que se llamen así en tu DB)
+    borrar = ['id', 'nombre_lote', 'dias_antelacion', 'lluvia', 'viento_dir_deg']
+    
+    # Borramos de forma segura
+    df_final = df_final.drop(columns=[c for c in borrar if c in df_final.columns])
+    
+    # 4. Reordenar: Viento_Dir al lado de viento_kmh
+    columnas = list(df_final.columns)
+    if 'viento_kmh' in columnas and 'Viento_Dir' in columnas:
+        columnas.remove('Viento_Dir')
+        idx = columnas.index('viento_kmh')
+        columnas.insert(idx + 1, 'Viento_Dir')
+        df_final = df_final[columnas]
+    
+    # 5. MOSTRAR LA TABLA NUEVA
+    st.dataframe(df_final, use_container_width=True, hide_index=True)
 
 else:
     st.warning(f"⚠️ No hay datos para el modelo {opciones_modelos[modelo_tabla]} en el lote {lote_seleccionado}.")
