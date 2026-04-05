@@ -19,9 +19,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="Monitoreo Agrícola v2.0", layout="wide", initial_sidebar_state="expanded")
-
 # --- FUNCIONES DE UTILIDAD ---
 
 def fecha_en_español(fecha):
@@ -39,24 +36,46 @@ def grados_a_direccion(grados):
     indice = int((grados + 22.5) % 360 // 45)
     return direcciones[indice]
 
-def cargar_datos(tabla, lote):
+def cargar_datos(lote_seleccionado, modelo_recibido):
+    conn = sqlite3.connect('monitoreo_agricola.db')
+    
+    # 1. MAPEO SEGÚN TUS FOTOS:
+    # recoleccion_ec -> ID 1 (ECMWF)
+    # recoleccion_mr -> ID 2 (GFS)
+    # recoleccion_yr -> ID 3 (MET_NORWAY)
+    mapeo_ids = {
+        "recoleccion_ec": 1,
+        "recoleccion_mr": 2,
+        "recoleccion_yr": 3
+    }
+    m_id = mapeo_ids.get(modelo_recibido)
+
+    # 2. QUERY DIRECTA (Sin subconsultas raras para evitar fallos de precisión)
+    # Buscamos por el nombre exacto del lote y el ID numérico del modelo
+    query = """
+    SELECT * FROM pronosticos_full 
+    WHERE campo_id = (SELECT id FROM campos WHERE nombre = ?) 
+      AND modelo_id = ?
+    ORDER BY fecha_consulta DESC, fecha_pronosticada ASC
+    """
+    
     try:
-        conn = sqlite3.connect(DB_NAME)
-        query = f"""
-            SELECT * FROM {tabla} 
-            WHERE nombre_campo = '{lote}' 
-            AND fecha_consulta = (SELECT MAX(fecha_consulta) FROM {tabla} WHERE nombre_campo = '{lote}')
-            ORDER BY fecha_pronosticada ASC
-        """
-        df = pd.read_sql_query(query, conn)
-        conn.close()
+        df = pd.read_sql_query(query, conn, params=(lote_seleccionado, m_id))
+        
         if not df.empty:
+            # Nos quedamos solo con la última tanda de datos guardada (2026-04-05 18:56)
+            ultima_sincro = df['fecha_consulta'].iloc[0]
+            df = df[df['fecha_consulta'] == ultima_sincro].copy()
+            
+            # Limpieza de fechas para el gráfico
             df['fecha_pronosticada'] = pd.to_datetime(df['fecha_pronosticada'])
-            return df
-        return pd.DataFrame()
+            
+        return df
     except Exception as e:
-        st.error(f"Error al conectar con la DB: {e}")
+        st.error(f"Error en Query: {e}")
         return pd.DataFrame()
+    finally:
+        conn.close()
 
 # --- SIDEBAR (CONFIGURACIÓN) ---
 st.sidebar.header("⚙️ Configuración")
@@ -75,7 +94,7 @@ modelo_tabla = st.sidebar.radio(
 )
 
 # --- PROCESAMIENTO ---
-df_completo = cargar_datos(modelo_tabla, lote_seleccionado)
+df_completo = cargar_datos(lote_seleccionado, modelo_tabla)
 
 if not df_completo.empty:
     dias_disponibles = df_completo['fecha_pronosticada'].dt.date.unique()
