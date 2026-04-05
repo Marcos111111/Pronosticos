@@ -7,10 +7,32 @@ from datetime import datetime
 import numpy as np
 from config import DB_NAME, CAMPOS
 
+
+st.set_page_config(page_title="Monitoreo Agrícola v2.0", layout="wide", initial_sidebar_state="expanded")
+
+# --- AJUSTE VISUAL PARA CELULAR ---
+st.markdown("""
+    <style>
+    [data-testid="stMetricValue"] {
+        font-size: 1.6rem !important; 
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Monitoreo Agrícola v2.0", layout="wide", initial_sidebar_state="expanded")
 
 # --- FUNCIONES DE UTILIDAD ---
+
+def fecha_en_español(fecha):
+    meses = ("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre")
+    dias = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
+    
+    dia_semana = dias[fecha.weekday()]
+    mes = meses[fecha.month - 1]
+    
+    return f"{dia_semana} {fecha.day} de {mes}"
+
 def grados_a_direccion(grados):
     if grados is None or pd.isna(grados): return "-"
     direcciones = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"]
@@ -71,7 +93,7 @@ if not df_completo.empty:
     st.title("📊 Panel de Control Meteorológico")
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.subheader(f"📅 Pronóstico: {dia_elegido.strftime('%A %d de %B')}")
+        st.subheader(f"📅 Pronóstico: {fecha_en_español(dia_elegido)}")
     with col2:
         st.info(f"**Lote:** {lote_seleccionado}\n\n**Modelo:** {opciones_modelos[modelo_tabla]}")
 
@@ -122,14 +144,27 @@ if not df_completo.empty:
         y0=2, y1=2, line=dict(color="orange", width=2, dash="dash")
     )
 
+    # --- CONFIGURACIÓN FINAL PARA MÓVIL ---
     fig_temp.update_layout(
-        template="plotly_dark", hovermode="x unified",
-        xaxis_title="Hora", yaxis_title="Temperatura (°C)",
-        margin=dict(l=10, r=10, t=30, b=10),
-        legend=dict(orientation="h", y=1.1, x=1, xanchor="right")
+        template="plotly_dark",
+        hovermode="x unified",
+        xaxis_title="Hora",
+        yaxis_title="Temperatura (°C)",
+        height=450, # Altura fija para que no se vea "aplastado" en el celu
+        margin=dict(l=10, r=10, t=30, b=60), # Más margen abajo para la leyenda
+        legend=dict(
+            orientation="h", 
+            yanchor="bottom", y=-0.5, # Mandamos la leyenda abajo del gráfico
+            xanchor="center", x=0.5
+        )
     )
-    fig_temp.update_xaxes(dtick=3600000 * 2, tickformat="%H:%M")
-    st.plotly_chart(fig_temp, use_container_width=True)
+        
+    # Esto hace que las horas no se pisen en pantallas chicas
+    fig_temp.update_xaxes(dtick=3600000 * 3, tickformat="%H:%M") 
+
+    # IMPORTANTE: El config={'displayModeBar': False} apaga la barrita de herramientas 
+    # que molesta cuando querés hacer scroll con el dedo.
+    st.plotly_chart(fig_temp, use_container_width=True, config={'displayModeBar': False})
 
     # --- GRÁFICO DE LLUVIA ---
     if df_dia['lluvia_mm'].sum() > 0:
