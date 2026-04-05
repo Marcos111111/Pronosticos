@@ -2,19 +2,21 @@ name: Actualizar Datos Clima
 
 on:
   schedule:
-    - cron: '0 */3 * * *'
-  workflow_dispatch:
+    - cron: '0 */3 * * *' # Cada 3 horas
+  workflow_dispatch: # Permite ejecutarlo a mano desde la pestaña Actions
 
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del código
-        uses: actions/checkout@v4 # Actualizamos a v4 (mejor que v3)
+        uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} # Usamos el token explícitamente
+          # Esto es clave para que el push funcione sin problemas de permisos
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configurar Python
         uses: actions/setup-python@v4
@@ -25,14 +27,20 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Ejecutar Sincronización
+      - name: Ejecutar Sincronización (main.py)
         run: python main.py
 
       - name: Guardar cambios en la DB
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add monitoreo_agricola.db
-          # Solo hace commit si hay cambios, si no, no hace nada
-          git commit -m "Actualización automática de datos" || exit 0
+          
+          # IMPORTANTE: Asegurate que este nombre coincida con el de tu archivo real
+          # Si en main.py usas 'pronostico.db', cambialo acá también.
+          git add monitoreo_agricola.db 
+          
+          # Hacemos el commit solo si hubo cambios reales en los datos
+          git commit -m "Backup automático DB: $(date +'%Y-%m-%d %H:%M')" || exit 0
+          
+          # Subimos los cambios a la rama principal
           git push origin main
