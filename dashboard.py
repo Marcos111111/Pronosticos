@@ -39,46 +39,37 @@ def grados_a_direccion(grados):
 def cargar_datos(lote_seleccionado, modelo_recibido):
     conn = sqlite3.connect('monitoreo_agricola.db')
     
-    # 1. MAPEO SEGÚN TUS FOTOS:
-    # recoleccion_ec -> ID 1 (ECMWF)
-    # recoleccion_mr -> ID 2 (GFS)
-    # recoleccion_yr -> ID 3 (MET_NORWAY)
-    mapeo_ids = {
-        "recoleccion_ec": 1,
-        "recoleccion_mr": 2,
-        "recoleccion_yr": 3
-    }
+    mapeo_ids = {"recoleccion_ec": 1, "recoleccion_mr": 2, "recoleccion_yr": 3}
     m_id = mapeo_ids.get(modelo_recibido)
 
-    # 2. QUERY DIRECTA (Sin subconsultas raras para evitar fallos de precisión)
-    # Buscamos por el nombre exacto del lote y el ID numérico del modelo
+    # ESTA QUERY BUSCA LA ÚLTIMA HORA DE ACTIVIDAD Y TRAE TODO LO QUE SE SUBIÓ AHÍ
+    # Usamos un margen de 1 hora para capturar los 4 días si el bot tardó en subir.
     query = """
-        SELECT * FROM pronosticos_full 
-        WHERE campo_id = (SELECT id FROM campos WHERE nombre = ?) 
-        AND modelo_id = ?
-        AND strftime('%Y-%m-%d %H', fecha_consulta) = (
-            SELECT strftime('%Y-%m-%d %H', MAX(fecha_consulta)) 
-            FROM pronosticos_full 
-            WHERE campo_id = (SELECT id FROM campos WHERE nombre = ?) 
-                AND modelo_id = ?
-        )
-        ORDER BY fecha_pronosticada ASC
-        """
-
+    SELECT * FROM pronosticos_full 
+    WHERE campo_id = (SELECT id FROM campos WHERE nombre = ?) 
+      AND modelo_id = ?
+      AND fecha_consulta >= (
+          SELECT datetime(MAX(fecha_consulta), '-1 hour') 
+          FROM pronosticos_full 
+          WHERE campo_id = (SELECT id FROM campos WHERE nombre = ?)
+            AND modelo_id = ?
+      )
+    ORDER BY fecha_pronosticada ASC
+    """
+    
     try:
-        parametros = (lote_seleccionado, m_id, lote_seleccionado, m_id)
-        df = pd.read_sql_query(query, conn, params=parametros)
+        params = (lote_seleccionado, m_id, lote_seleccionado, m_id)
+        df = pd.read_sql_query(query, conn, params=params)
+        
         if not df.empty:
-            # Nos quedamos solo con la última tanda de datos guardada (2026-04-05 18:56)
-            ultima_sincro = df['fecha_consulta'].iloc[0]
-            df = df[df['fecha_consulta'] == ultima_sincro].copy()
-            
-            # Limpieza de fechas para el gráfico
             df['fecha_pronosticada'] = pd.to_datetime(df['fecha_pronosticada'])
+            # DEBUG PARA VOS:
+            print(f"DEBUG Dashboard: Cargadas {len(df)} filas.")
+            print(f"Días detectados: {df['fecha_pronosticada'].dt.date.unique()}")
             
         return df
     except Exception as e:
-        st.error(f"Error en Query: {e}")
+        print(f"Error en Dashboard: {e}")
         return pd.DataFrame()
     finally:
         conn.close()
@@ -103,8 +94,9 @@ modelo_tabla = st.sidebar.radio(
 df_completo = cargar_datos(lote_seleccionado, modelo_tabla)
 
 # --- DIAGNÓSTICO ---
-print(f"DEBUG: Lote seleccionado: '{lote_seleccionado}'")
-print(f"DEBUG: Cantidad de filas en DF: {len(df_completo)}")
+print("--- REVISIÓN DE LA TABLA COMPLETA ---")
+print(df_completo[['fecha_consulta', 'fecha_pronosticada']].head(30))
+print(f"Tipos de datos:\n{df_completo.dtypes}")
    
 if not df_completo.empty:
     print(f"DEBUG: Fecha consulta detectada: {df_completo['fecha_consulta'].iloc[0]}")
