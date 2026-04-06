@@ -31,9 +31,9 @@ jobs:
         run: python main.py
 
       - name: Commit and Push
-  run: |
-    git config --local user.email "action@github.com"
-    git config --local user.name "GitHub Action"
-    git add -A  # Esto agrega todo lo que NO esté en el .gitignore
-    git commit -m "Actualización automática de datos" || echo "No hay cambios para commitear"
-    git push origin main
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add -A  # Esto agrega todo lo que NO esté en el .gitignore
+          git commit -m "Actualización automática de datos" || echo "No hay cambios para commitear"
+          git push origin main
