@@ -2,7 +2,7 @@ import requests
 from datetime import datetime, timedelta
 from config import USER_AGENT
 
-def obtener_yr(lat, lon, nombre_campo):
+def obtener_yr(lat, lon, nombre_campo, id_modelo):
     """Motor Met.no - Guarda día completo + pronóstico (11 campos)"""
     url = f"https://api.met.no/weatherapi/locationforecast/2.0/complete?lat={lat}&lon={lon}"
     headers = {'User-Agent': USER_AGENT}
@@ -28,25 +28,26 @@ def obtener_yr(lat, lon, nombre_campo):
                 diff_dias = (fecha_dt.date() - ahora.date()).days
                 
                 # TUPLA COMPLETA DE 11 ELEMENTOS
+                # Asegurate de que el orden sea este exacto:
                 registros.append((
-                    nombre_campo,                                   # 1
-                    fecha_dt.strftime("%Y-%m-%d %H:%M"),            # 2
-                    diff_dias,                                      # 3
-                    det.get('air_temperature'),                     # 4
-                    det.get('dew_point_temperature'),               # 5
-                    det.get('relative_humidity'),                   # 6
-                    round(det.get('wind_speed', 0) * 3.6, 1),       # 7
-                    data.get('next_1_hours', {}).get('details', {}).get('precipitation_amount', 0), # 8
-                    det.get('air_pressure_at_sea_level'),           # 9
-                    det.get('wind_from_direction'),                 # 10
-                    ahora.strftime("%Y-%m-%d %H:%M")                # 11
+                    nombre_campo,                                   # 1. campo_id
+                    fecha_dt.strftime("%Y-%m-%d %H:%M"),            # 3. fecha_pronosticada
+                    diff_dias,                                      # 4. dias_antelacion
+                    det.get('air_temperature'),                     # 5. temp_c
+                    det.get('dew_point_temperature'),               # 6. punto_rocio_c
+                    det.get('relative_humidity'),                   # 7. humedad_relativa
+                    round(det.get('wind_speed', 0) * 3.6, 1),       # 8. viento_kmh
+                    det.get('wind_from_direction'),                 # 9. viento_dir_deg
+                    data.get('next_1_hours', {}).get('details', {}).get('precipitation_amount', 0), # 10. lluvia_mm
+                    det.get('air_pressure_at_sea_level'),           # 11. presion_hpa
+                    ahora.strftime("%Y-%m-%d %H:%M")                # 12. fecha_consulta
                 ))
         return registros
     except Exception as e:
         print(f"Error YR en {nombre_campo}: {e}")
         return []
 
-def procesar_open_meteo(url, nombre_campo, label):
+def procesar_open_meteo(url, nombre_campo, label, id_modelo):
     """Procesador GFS/ECMWF - Guarda día completo + pronóstico (11 campos)"""
     try:
         res = requests.get(url, timeout=15)
@@ -66,18 +67,19 @@ def procesar_open_meteo(url, nombre_campo, label):
                 diff = (fecha_dt.date() - ahora.date()).days
                 
                 # TUPLA COMPLETA DE 11 ELEMENTOS
+                # Asegurate de que el orden sea este exacto:
                 registros.append((
-                    nombre_campo,                          # 1
-                    fecha_dt.strftime("%Y-%m-%d %H:%M"),   # 2
-                    diff,                                  # 3
-                    h['temperature_2m'][i],                # 4
-                    h['dew_point_2m'][i],                  # 5
-                    h['relative_humidity_2m'][i],          # 6
-                    h['wind_speed_10m'][i],                # 7
-                    h['precipitation'][i],                 # 8
-                    h['pressure_msl'][i],                  # 9
-                    h['wind_direction_10m'][i],            # 10
-                    ahora.strftime("%Y-%m-%d %H:%M")       # 11
+                    nombre_campo,                          # 1. campo_id
+                    fecha_dt.strftime("%Y-%m-%d %H:%M"),   # 3. fecha_pronosticada
+                    diff,                                  # 4. dias_antelacion
+                    h['temperature_2m'][i],                # 5. temp_c
+                    h['dew_point_2m'][i],                  # 6. punto_rocio_c
+                    h['relative_humidity_2m'][i],          # 7. humedad_relativa
+                    h['wind_speed_10m'][i],                # 8. viento_kmh
+                    h['wind_direction_10m'][i],            # 9. viento_dir_deg
+                    h['precipitation'][i],                 # 10. lluvia_mm
+                    h['pressure_msl'][i],                  # 11. presion_hpa
+                    ahora.strftime("%Y-%m-%d %H:%M")       # 12. fecha_consulta
                 ))
         return registros
     except Exception as e:
@@ -96,7 +98,7 @@ def obtener_datos_clima(lat, lon, nombre_campo):
     url_ec = f"{base_url}?latitude={lat}&longitude={lon}{params}&models=ecmwf_ifs025"
 
     return {
-        "yr": obtener_yr(lat, lon, nombre_campo),
-        "mr": procesar_open_meteo(url_mr, nombre_campo, "GFS"),
-        "ec": procesar_open_meteo(url_ec, nombre_campo, "ECMWF")
+        "yr": obtener_yr(lat, lon, nombre_campo, 3),
+        "mr": procesar_open_meteo(url_mr, nombre_campo, "GFS", 2),
+        "ec": procesar_open_meteo(url_ec, nombre_campo, "ECMWF", 1)
     }
