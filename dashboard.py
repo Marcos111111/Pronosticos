@@ -105,7 +105,7 @@ if not df_completo.empty:
         st.info(f"**Lote:** {lote_sel} | **Modelo:** {opciones_modelos[mod_alias].split(' ')[0]}")
 
     # --- GRÁFICO T° vs ROCÍO ---
-    st.subheader("🌡️ Temperatura y Humedad")
+    st.subheader("🌡️ Temperatura vs Punto de Rocio")
     df_dia['dif'] = df_dia['temp_c'] - df_dia['punto_rocio_c']
     
     fig_temp = go.Figure()
