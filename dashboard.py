@@ -53,15 +53,21 @@ def cargar_datos(lote_seleccionado, modelo_recibido):
     # 2. QUERY DIRECTA (Sin subconsultas raras para evitar fallos de precisión)
     # Buscamos por el nombre exacto del lote y el ID numérico del modelo
     query = """
-    SELECT * FROM pronosticos_full 
-    WHERE campo_id = (SELECT id FROM campos WHERE nombre = ?) 
-      AND modelo_id = ?
-    ORDER BY fecha_consulta DESC, fecha_pronosticada ASC
-    """
-    
+        SELECT * FROM pronosticos_full 
+        WHERE campo_id = (SELECT id FROM campos WHERE nombre = ?) 
+        AND modelo_id = ?
+        AND strftime('%Y-%m-%d %H', fecha_consulta) = (
+            SELECT strftime('%Y-%m-%d %H', MAX(fecha_consulta)) 
+            FROM pronosticos_full 
+            WHERE campo_id = (SELECT id FROM campos WHERE nombre = ?) 
+                AND modelo_id = ?
+        )
+        ORDER BY fecha_pronosticada ASC
+        """
+
     try:
-        df = pd.read_sql_query(query, conn, params=(lote_seleccionado, m_id))
-        
+        parametros = (lote_seleccionado, m_id, lote_seleccionado, m_id)
+        df = pd.read_sql_query(query, conn, params=parametros)
         if not df.empty:
             # Nos quedamos solo con la última tanda de datos guardada (2026-04-05 18:56)
             ultima_sincro = df['fecha_consulta'].iloc[0]
@@ -96,15 +102,28 @@ modelo_tabla = st.sidebar.radio(
 # --- PROCESAMIENTO ---
 df_completo = cargar_datos(lote_seleccionado, modelo_tabla)
 
+# --- DIAGNÓSTICO ---
+print(f"DEBUG: Lote seleccionado: '{lote_seleccionado}'")
+print(f"DEBUG: Cantidad de filas en DF: {len(df_completo)}")
+   
 if not df_completo.empty:
-    dias_disponibles = df_completo['fecha_pronosticada'].dt.date.unique()
+    print(f"DEBUG: Fecha consulta detectada: {df_completo['fecha_consulta'].iloc[0]}")
+    dias_disponibles = sorted(df_completo['fecha_pronosticada'].dt.date.unique())
+    
     st.sidebar.markdown("---")
     st.sidebar.subheader("📅 Navegación Temporal")
-    dia_elegido = st.sidebar.select_slider(
-        "Deslizá para cambiar de día:",
-        options=dias_disponibles,
-        format_func=lambda x: x.strftime("%d/%m (Hoy)") if x == dias_disponibles[0] else x.strftime("%d/%m")
-    )
+
+    # --- CAMBIO AQUÍ: Validación de rango ---
+    if len(dias_disponibles) > 1:
+        dia_elegido = st.sidebar.select_slider(
+            "Deslizá para cambiar de día:",
+            options=dias_disponibles,
+            format_func=lambda x: x.strftime("%d/%m (Hoy)") if x == dias_disponibles[0] else x.strftime("%d/%m")
+        )
+    else:
+        # Si hay un solo día, no dibujamos slider, solo fijamos la variable
+        dia_elegido = dias_disponibles[0]
+        st.sidebar.info(f"Visualizando: {dia_elegido.strftime('%d/%m')}")
 
     df_dia = df_completo[df_completo['fecha_pronosticada'].dt.date == dia_elegido].copy()
 

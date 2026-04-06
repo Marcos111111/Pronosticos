@@ -11,7 +11,7 @@ def obtener_yr(lat, lon, nombre_campo):
         res.raise_for_status()
         data_json = res.json()
         timeseries = data_json['properties']['timeseries']
-        ahora = datetime.now()
+        ahora = datetime.now().replace(minute=0, second=0, microsecond=0)
         registros = []
         
         for ts in timeseries:
@@ -22,7 +22,7 @@ def obtener_yr(lat, lon, nombre_campo):
                 data = ts.get('data', {})
                 det = data.get('instant', {}).get('details', {})
                 
-                # El orden debe coincidir EXACTO con tu database.py
+                # El orden debe coincidir EXACTO con database.py
                 registros.append((
                     nombre_campo, 
                     fecha_dt.strftime("%Y-%m-%d %H:%M"),
@@ -47,7 +47,7 @@ def procesar_open_meteo(url, nombre_campo, label):
         res = requests.get(url, timeout=15)
         res.raise_for_status()
         h = res.json()['hourly']
-        ahora = datetime.now()
+        ahora = datetime.now().replace(minute=0, second=0, microsecond=0)
         registros = []
         
         for i in range(len(h['time'])):
