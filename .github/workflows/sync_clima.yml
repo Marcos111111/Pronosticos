@@ -30,17 +30,10 @@ jobs:
       - name: Ejecutar Sincronización (main.py)
         run: python main.py
 
-      - name: Guardar cambios en la DB
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          # IMPORTANTE: Asegurate que este nombre coincida con el de tu archivo real
-          # Si en main.py usas 'pronostico.db', cambialo acá también.
-          git add monitoreo_agricola.db 
-          
-          # Hacemos el commit solo si hubo cambios reales en los datos
-          git commit -m "Backup automático DB: $(date +'%Y-%m-%d %H:%M')" || exit 0
-          
-          # Subimos los cambios a la rama principal
-          git push origin main
+      - name: Commit and Push
+  run: |
+    git config --local user.email "action@github.com"
+    git config --local user.name "GitHub Action"
+    git add -A  # Esto agrega todo lo que NO esté en el .gitignore
+    git commit -m "Actualización automática de datos" || echo "No hay cambios para commitear"
+    git push origin main
